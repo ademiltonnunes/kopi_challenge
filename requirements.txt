@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+sqlite-utils
+pydantic
+python-dotenv
+pytest
+openai>=1.0
