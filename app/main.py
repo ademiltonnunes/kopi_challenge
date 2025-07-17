@@ -11,7 +11,7 @@ app = FastAPI()
 conversations: Dict[str, Conversation] = {}
 
 class ChatRequest(BaseModel):
-    conversation_id: Optional[str]
+    conversation_id: Optional[str] = None
     message: str
 
 class ChatMessage(BaseModel):
@@ -24,34 +24,33 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
-    # If no conversation_id, start a new conversation and extract topic/stance
-    if not request.conversation_id:
+    conversation_id = request.conversation_id if request.conversation_id is not None else None
+
+    # Start a new conversation
+    if not conversation_id:
         topic = Topic.extract_topic_and_stance(request.message)
         conversation = Conversation(topic=topic.topic, stance=topic.stance)
         conversations[conversation.id] = conversation
-        # Add initial user message
-        conversation.add_message(Message("user", request.message))
-        # Create Debate instance with extracted topic/stance
-        debate = Debate(topic=topic.topic, stance=topic.stance)
+    # Continue an existing conversation
     else:
-        conversation = conversations.get(request.conversation_id)
+        conversation = conversations.get(conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
-        # Add user message
-        conversation.add_message(Message("user", request.message))
-        # Use stored topic/stance (assuming stance is stored or can be reconstructed)
-        # For now, use a default stance if not available
-        debate = Debate(topic=conversation.topic, stance=conversation.stance)
-
+    
+    # Add user message
+    conversation.add_message(Message("user", request.message))
+    # Create a debate instance
+    debate = Debate(topic=conversation.topic, stance=conversation.stance)
     # Get bot reply
     bot_reply = debate.chat(conversation)
+    # Add bot reply to conversation
     conversation.add_message(Message("assistant", bot_reply))
 
-    # Return the last 10 messages (most recent last)
-    history = conversation.get_history()[-10:]
+    # Convert Message objects to ChatMessage for the response
     formatted_history = [
-        ChatMessage(role=msg["role"], message=msg["content"]) for msg in history
+        ChatMessage(role=msg.role, message=msg.content) for msg in conversation.get_history(last_n=10)
     ]
+
     return ChatResponse(
         conversation_id=conversation.id,
         message=formatted_history

@@ -36,6 +36,6 @@ class Debate:
         self.__openai_response = OpenAI_Response()
 
     def chat(self, conversation: Conversation) -> str:
-        history = conversation.get_history()
+        history = conversation.get_history_dict()
         bot_reply = self.__openai_response.get_response(self.__system_prompt, history)
         return bot_reply
