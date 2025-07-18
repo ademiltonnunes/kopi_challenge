@@ -3,12 +3,19 @@ from pydantic import BaseModel
 from typing import Optional, List, cast
 from sqlalchemy.orm import Session
 from app.topic import Topic
-from app.conversation import Conversation, Message
+from app.conversation import Conversation
 from app.debate import Debate
-from app.database import get_db
+from app.database import get_db, engine, Base
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+# Use FastAPI lifespan event handler for automatic table creation
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
