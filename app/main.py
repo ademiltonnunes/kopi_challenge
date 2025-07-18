@@ -114,14 +114,15 @@ def list_conversation_messages(
     conversation_id: str,
     db: Session = Depends(get_db),
     skip: int = Query(0, ge=0, description="Number of items to skip"),
-    limit: int = Query(20, ge=1, le=100, description="Max items to return")
+    limit: int = Query(20, ge=1, le=100, description="Max items to return"),
+    desc: bool = Query(False, description="Sort from newest to oldest if true, oldest to newest if false")
 ):
     conversation = Conversation.get_by_id(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    # Load all messages, then slice for pagination
-    conversation.load_messages_from_db(db, limit=10000)  # Load all (or a large number)
-    paginated = conversation.messages[skip:skip+limit]
+    # Load all messages in the requested order
+    all_messages = conversation.load_all_messages_from_db(db, desc=desc)
+    paginated = all_messages[skip:skip+limit]
     return [
         ChatMessage(
             role=(msg.role if msg.role != "assistant" else "bot"),

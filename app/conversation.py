@@ -36,7 +36,7 @@ class Conversation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationship with messages
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="conversation")
 
     def __init__(self, conversation_id: Optional[str] = None, topic: Optional[str] = None, stance: Optional[str] = None):
         self.id = conversation_id or str(uuid.uuid4())
@@ -78,5 +78,14 @@ class Conversation(Base):
             .limit(limit)\
             .all()
         messages = list(reversed(messages))  # So oldest is first
-        self.messages = messages
+        return messages
+
+    def load_all_messages_from_db(self, db_session, desc: bool = False):
+        """Load all messages from database, ordered by created_at. If desc=True, newest to oldest."""
+        query = db_session.query(Message).filter(Message.conversation_id == self.id)
+        if desc:
+            query = query.order_by(Message.created_at.desc())
+        else:
+            query = query.order_by(Message.created_at.asc())
+        messages = query.all()
         return messages
