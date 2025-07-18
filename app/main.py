@@ -50,12 +50,8 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
         # Load messages from database
         conversation.load_messages_from_db(db, HISTORY_LIMIT)
     
-    # Add user message to database and in-memory (avoid duplicates)
-    user_msg = cast(Message, conversation.add_message_to_db(db, "user", request.message))
-    messages = cast(List[Message], conversation.messages)
-    if not messages or messages[-1].id != user_msg.id:
-        messages.append(user_msg)
-        conversation.messages = messages
+    # Add user message to database
+    conversation.add_message_to_db(db, "user", request.message)
     
     # Create a debate instance
     debate = Debate(topic=str(conversation.topic), stance=str(conversation.stance))
@@ -70,11 +66,11 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     if isinstance(bot_reply, str) and bot_reply.startswith("Error:"):
         raise HTTPException(status_code=502, detail=bot_reply)
     
-    # Add bot reply to database and in-memory (avoid duplicates)
-    bot_msg = cast(Message, conversation.add_message_to_db(db, "assistant", bot_reply))
-    if not messages or messages[-1].id != bot_msg.id:
-        messages.append(bot_msg)
-        conversation.messages = messages
+    # Add bot reply to database
+    conversation.add_message_to_db(db, "assistant", bot_reply)
+
+    # Reload messages from DB to refresh the in-memory list
+    conversation.load_messages_from_db(db, HISTORY_LIMIT)
 
     # Use only the last HISTORY_LIMIT messages for the response
     formatted_history = [
