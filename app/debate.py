@@ -1,9 +1,11 @@
 from app.openai_response import OpenAI_Response
-from app.conversation import Conversation
+from typing import List, Dict
 
 class Debate:
     def __init__(self, topic: str, stance: str):
-        self.__system_prompt = """
+        self.topic = topic
+        self.stance = stance
+        self.__system_prompt = f"""
         You are a debate chatbot. Stand your ground and be persuasive.
         You are debating with a user.
         You are the debater.
@@ -35,7 +37,12 @@ class Debate:
         """
         self.__openai_response = OpenAI_Response()
 
-    def chat(self, conversation: Conversation) -> str:
-        history = conversation.get_history_dict()
+    def chat(self, user_message: str, conversation_history: List[Dict[str, str]] = None) -> str:
+        if conversation_history is None:
+            conversation_history = []
+        
+        # Add the current user message to history
+        history = conversation_history + [{"role": "user", "content": user_message}]
+        
         bot_reply = self.__openai_response.get_response(self.__system_prompt, history)
         return bot_reply
