@@ -74,18 +74,18 @@ class Conversation(Base):
         """Load the most recent messages from database, in chronological order (oldest to newest)"""
         messages = db_session.query(Message)\
             .filter(Message.conversation_id == self.id)\
-            .order_by(Message.created_at.desc())\
+            .order_by(Message.id.desc())\
             .limit(limit)\
             .all()
         messages = list(reversed(messages))  # So oldest is first
         return messages
 
     def load_all_messages_from_db(self, db_session, desc: bool = False):
-        """Load all messages from database, ordered by created_at. If desc=True, newest to oldest."""
+        """Load all messages from database, ordered by id. If desc=True, newest to oldest."""
         query = db_session.query(Message).filter(Message.conversation_id == self.id)
         if desc:
-            query = query.order_by(Message.created_at.desc())
+            query = query.order_by(Message.id.desc())
         else:
-            query = query.order_by(Message.created_at.asc())
+            query = query.order_by(Message.id.asc())
         messages = query.all()
         return messages
