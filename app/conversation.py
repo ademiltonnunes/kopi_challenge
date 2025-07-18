@@ -71,11 +71,12 @@ class Conversation(Base):
         return message
 
     def load_messages_from_db(self, db_session, limit: int = 10):
-        """Load messages from database"""
+        """Load the most recent messages from database, in chronological order (oldest to newest)"""
         messages = db_session.query(Message)\
             .filter(Message.conversation_id == self.id)\
-            .order_by(Message.created_at.asc())\
+            .order_by(Message.created_at.desc())\
             .limit(limit)\
             .all()
+        messages = list(reversed(messages))  # So oldest is first
         self.messages = messages
         return messages
