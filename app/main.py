@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, List, cast
 from sqlalchemy.orm import Session
@@ -94,8 +94,12 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     )
 
 @app.get("/conversations", response_model=List[ConversationSummary])
-def list_conversations(db: Session = Depends(get_db)):
-    conversations = db.query(Conversation).all()
+def list_conversations(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Max items to return")
+):
+    conversations = db.query(Conversation).offset(skip).limit(limit).all()
     return [
         ConversationSummary(
             id=str(conv.id),
@@ -106,18 +110,24 @@ def list_conversations(db: Session = Depends(get_db)):
     ]
 
 @app.get("/conversations/{conversation_id}/messages", response_model=List[ChatMessage])
-def list_conversation_messages(conversation_id: str, db: Session = Depends(get_db)):
+def list_conversation_messages(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Max items to return")
+):
     conversation = Conversation.get_by_id(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    # Ensure messages are loaded and ordered by creation time
-    conversation.load_messages_from_db(db, limit=1000)  # Arbitrary high limit to get all
+    # Load all messages, then slice for pagination
+    conversation.load_messages_from_db(db, limit=10000)  # Load all (or a large number)
+    paginated = conversation.messages[skip:skip+limit]
     return [
         ChatMessage(
             role=(msg.role if msg.role != "assistant" else "bot"),
             message=msg.content
         )
-        for msg in conversation.messages
+        for msg in paginated
     ]
 
 @app.get("/")
