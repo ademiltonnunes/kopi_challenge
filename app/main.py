@@ -32,7 +32,8 @@ class ChatResponse(BaseModel):
 class ConversationSummary(BaseModel):
     id: str
     topic: str
-    stance: str
+    user_stance: str
+    bot_stance: str
 
 HISTORY_LIMIT = 10
 
@@ -42,26 +43,45 @@ HISTORY_LIMIT = 10
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     conversation_id = request.conversation_id
     conversation: Optional[Conversation]
-
-    # Start a new conversation
+    
+    # 1 - Retrive Conversation
+    # 1.1 - Start a new conversation
     if not conversation_id:
-        topic = Topic.extract_topic_and_stance(request.message)
-        conversation = Conversation(topic=topic.topic, stance=topic.stance)
+        conversation = Conversation()
         conversation.save(db)
     else:
-        # Get existing conversation from database
+        # 1.2 - Get existing conversation from database
         conversation_obj = Conversation.get_by_id(db, conversation_id)
+
         if not isinstance(conversation_obj, Conversation):
             raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Cast to Conversation type
         conversation = cast(Conversation, conversation_obj)
+
         # Load messages from database
         conversation.load_messages_from_db(db, HISTORY_LIMIT)
     
-    # Add user message to database
+    # 2 - Set Topic and Stance if not set yet
+    if conversation.topic is None:
+        # 2.1 - Extract User Topic and Stance
+        topic = Topic.extract_user_topic_and_stance(request.message)
+
+        if topic.topic.lower() != "unknown" and topic.user_stance.lower() != "Unknown":
+            conversation.topic = topic.topic
+            conversation.user_stance = topic.user_stance
+            
+            # 2.2 - Get bot stance
+            bot_stance = Topic.extract_bot_stance(topic.topic, topic.user_stance)
+            conversation.bot_stance = bot_stance.bot_stance
+            
+            conversation.save(db)
+
+    # 3 - Add user message to database
     conversation.add_message_to_db(db, "user", request.message)
     
-    # Create a debate instance
-    debate = Debate(topic=str(conversation.topic), stance=str(conversation.stance))
+    # 4 - Create a debate instance
+    debate = Debate(topic=str(conversation.topic), user_stance=str(conversation.user_stance), bot_stance=str(conversation.bot_stance))
     
     # Get conversation history for the debate
     history = conversation.get_history_dict(HISTORY_LIMIT)
@@ -104,7 +124,8 @@ def list_conversations(
         ConversationSummary(
             id=str(conv.id),
             topic=str(conv.topic),
-            stance=str(conv.stance)
+            user_stance=str(conv.user_stance),
+            bot_stance=str(conv.bot_stance)
         )
         for conv in conversations
     ]

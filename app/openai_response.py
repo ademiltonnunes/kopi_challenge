@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class OpenAI_Response:
-    def __init__(self, model: str = "gpt-3.5-turbo", temperature: float = 0.5, max_tokens: int = 1000):
+    def __init__(self, model: str = "o4-mini", temperature: float = 0.5, max_tokens: int = 1000):
         self.client = OpenAI()
         self.model = model
         self.temperature = temperature

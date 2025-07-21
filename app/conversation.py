@@ -30,18 +30,20 @@ class Conversation(Base):
     __tablename__ = "conversations"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    topic = Column(Text, nullable=False)
-    stance = Column(Text, nullable=False)
+    topic = Column(Text, nullable=True)
+    user_stance = Column(Text, nullable=True)
+    bot_stance = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationship with messages
     messages = relationship("Message", back_populates="conversation")
 
-    def __init__(self, conversation_id: Optional[str] = None, topic: Optional[str] = None, stance: Optional[str] = None):
+    def __init__(self, conversation_id: Optional[str] = None, topic: Optional[str] = None, user_stance: Optional[str] = None, bot_stance: Optional[str] = None):
         self.id = conversation_id or str(uuid.uuid4())
         self.topic = topic
-        self.stance = stance
+        self.user_stance = user_stance
+        self.bot_stance = bot_stance
         self.messages: List[Message] = []
 
     def get_history_dict(self, last_n: Optional[int] = None) -> List[dict]:
